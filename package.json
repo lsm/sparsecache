@@ -1,0 +1,20 @@
+{
+  "name": "sparsecache",
+  "description": "SparseCache - Distributed in-process cache.",
+  "version": "0.1.0",
+  "homepage": "http://github.com/weetang/sparsecache",
+  "author": "Senmiao Liu <zir.echo@gmail.com> http://vitecho.com",
+  "repository" : {
+    "type" : "git",
+    "url" : "http://github.com/weetang/sparsecache.git"
+  },
+  "main": "./lib",
+  "dependencies": {
+    "zmq": "~2.2.0",
+    "msgpack": "~0.1.7",
+    "lru": "~0.1.5"
+  },
+  "engines": {
+    "node": ">= 0.8.x"
+  }
+}
