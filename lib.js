@@ -21,18 +21,11 @@ Module dependencies
   os = require('os');
 
   /*
-  Export `SparseCache`
-  */
-
-
-  exports.SparseCache = SparseCache;
-
-  /*
   Class `SparseCache`
   */
 
 
-  SparseCache = (function(_super) {
+  exports.SparseCache = SparseCache = (function(_super) {
 
     __extends(SparseCache, _super);
 
@@ -74,6 +67,7 @@ Module dependencies
 
     SparseCache.prototype.set = function(key, value) {
       var msg;
+      this._set(key, value);
       msg = msgpack.pack(['set', key, value]);
       return this.pubSocket.send(msg);
     };
@@ -88,6 +82,7 @@ Module dependencies
 
     SparseCache.prototype.remove = function(key) {
       var msg;
+      this._remove(key);
       msg = msgpack.pack(['remove', key]);
       return this.pubSocket.send(msg);
     };
@@ -95,20 +90,5 @@ Module dependencies
     return SparseCache;
 
   })(EventEmitter);
-
-  /*
-  sc = new SparseCache
-  
-  sc.subSocket.on 'message', (data) ->
-    # console.log @identity, ' received: ', data.toString()
-    console.log sc.get 'test key'
-  
-  sc2 = new SparseCache
-  val = 0
-  setInterval () ->
-    sc2.set 'test key', {a: ++val}
-  , 1000
-  */
-
 
 }).call(this);

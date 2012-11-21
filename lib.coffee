@@ -9,14 +9,9 @@ os = require 'os'
 
 
 ###
-Export `SparseCache`
-###
-exports.SparseCache = SparseCache
-
-###
 Class `SparseCache`
 ###
-class SparseCache extends EventEmitter
+exports.SparseCache = class SparseCache extends EventEmitter
 	constructor: (@options={}) ->
     @cache = new LRU(@options.max ? 1000)
     @connect @options.pgm
@@ -46,6 +41,7 @@ class SparseCache extends EventEmitter
     @cache.set(key, value) 
 
   set: (key, value) ->
+    @_set key, value
     msg = msgpack.pack(['set', key, value])
     @pubSocket.send msg
 
@@ -56,22 +52,23 @@ class SparseCache extends EventEmitter
     @cache.remove(key)
 
   remove:(key) ->
+    @_remove key
     msg = msgpack.pack ['remove', key]
     @pubSocket.send msg
   
 
-###
-sc = new SparseCache
 
-sc.subSocket.on 'message', (data) ->
-  # console.log @identity, ' received: ', data.toString()
-  console.log sc.get 'test key'
+# sc = new SparseCache
 
-sc2 = new SparseCache
-val = 0
-setInterval () ->
-  sc2.set 'test key', {a: ++val}
-, 1000
+# sc.subSocket.on 'message', (data) ->
+# #   console.log @identity, ' received: ', data.toString()
+#   console.log sc.get 'test key'
 
-###
+# sc2 = new SparseCache
+# val = 0
+# setInterval () ->
+#   sc2.set 'test key', {a: ++val}
+# , 1000
+
+
 
