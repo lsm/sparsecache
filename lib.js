@@ -37,7 +37,7 @@ Module dependencies
       this.identity = os.hostname() + "_" + process.pid;
       if (this.options.peers) {
         this.selfPeer = this.getSelfPeer(this.options.peers);
-        if (this.selfPeer) {
+        if (this.selfPeer && this.options.bindSelf) {
           this.serverSocket = zmq.socket('rep');
           this.serverSocket.bind(this.selfPeer, function(err) {
             if (err) {

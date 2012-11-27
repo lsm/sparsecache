@@ -1,7 +1,7 @@
 {
   "name": "sparsecache",
   "description": "SparseCache - Distributed in-process cache.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "homepage": "http://github.com/weetang/sparsecache",
   "author": "Senmiao Liu <zir.echo@gmail.com> http://vitecho.com",
   "repository" : {

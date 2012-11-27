@@ -18,7 +18,7 @@ exports.SparseCache = class SparseCache extends EventEmitter
 
     if @options.peers 
       @selfPeer = @getSelfPeer @options.peers
-      if @selfPeer
+      if @selfPeer and @options.bindSelf
         # create respond socket
         @serverSocket = zmq.socket 'rep'
         # bind the socket to local network address
