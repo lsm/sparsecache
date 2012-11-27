@@ -30,13 +30,147 @@ Module dependencies
     __extends(SparseCache, _super);
 
     function SparseCache(options) {
-      var _ref;
+      var _ref,
+        _this = this;
       this.options = options != null ? options : {};
       this.cache = new LRU((_ref = this.options.max) != null ? _ref : 1000);
-      this.connect(this.options.pgm);
+      this.identity = os.hostname() + "_" + process.pid;
+      if (this.options.peers) {
+        this.selfPeer = this.getSelfPeer(this.options.peers);
+        if (this.selfPeer) {
+          this.serverSocket = zmq.socket('rep');
+          this.serverSocket.bind(this.selfPeer, function(err) {
+            if (err) {
+              throw err;
+            }
+            return _this.serverSocket.on('message', function(msg) {
+              return _this.handleMessage(msg, _this.serverSocket);
+            });
+          });
+          this.options.peers = this.options.peers.filter(function(peer) {
+            if (_this.selfPeer !== peer) {
+              return true;
+            }
+          });
+        }
+        this.connectPeers(this.options.peers);
+      } else {
+        throw new Error('No network address supplied');
+      }
     }
 
-    SparseCache.prototype.connect = function(pgm) {
+    SparseCache.prototype.getSelfPeer = function(peers) {
+      var address, addresses, device, peer, r, _i, _j, _len, _len1, _ref;
+      for (_i = 0, _len = peers.length; _i < _len; _i++) {
+        peer = peers[_i];
+        _ref = os.networkInterfaces();
+        for (device in _ref) {
+          addresses = _ref[device];
+          for (_j = 0, _len1 = addresses.length; _j < _len1; _j++) {
+            address = addresses[_j];
+            r = new RegExp(address.address);
+            if (r.test(peer)) {
+              return peer;
+            }
+          }
+        }
+      }
+    };
+
+    SparseCache.prototype.connectPeers = function(peers) {
+      var peer, peerSocket, _i, _len, _results,
+        _this = this;
+      this.peers = [];
+      _results = [];
+      for (_i = 0, _len = peers.length; _i < _len; _i++) {
+        peer = peers[_i];
+        peerSocket = zmq.socket('req');
+        peerSocket.connect(peer);
+        peerSocket.on('message', function(msg) {
+          return _this.handleMessage(msg, peerSocket);
+        });
+        _results.push(this.peers.push(peerSocket));
+      }
+      return _results;
+    };
+
+    SparseCache.prototype.handleMessage = function(msg, socket) {
+      var event, getMsg, value;
+      msg = msgpack.unpack(msg);
+      event = msg[0];
+      switch (event) {
+        case "set":
+          this._set(msg[1], msg[2]);
+          this.emit("set", {
+            key: msg[1],
+            value: msg[2]
+          });
+          return socket.send(msgpack.pack(['ok']));
+        case "remove":
+          this._remove(msg[1]);
+          this.emit("remove", msg[1]);
+          return socket.send(msgpack.pack(['ok']));
+        case "rget":
+          value = this.get(msg[1]);
+          getMsg = ['get', msg[1], value != null ? value : null, msg[2]];
+          return socket.send(msgpack.pack(getMsg));
+        case "get":
+          if (msg[3] === this.identity) {
+            return this.emit("get", {
+              key: msg[1],
+              value: msg[2]
+            });
+          }
+      }
+    };
+
+    SparseCache.prototype.send = function(msg) {
+      var peerSocket, _i, _len, _ref;
+      msg = msgpack.pack(msg);
+      _ref = this.peers;
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        peerSocket = _ref[_i];
+        peerSocket.send(msg);
+      }
+      return this;
+    };
+
+    SparseCache.prototype._set = function(key, value) {
+      return this.cache.set(key, value);
+    };
+
+    SparseCache.prototype.set = function(key, value) {
+      this._set(key, value);
+      this.send(['set', key, value]);
+      return this;
+    };
+
+    SparseCache.prototype.get = function(key) {
+      return this.cache.get(key);
+    };
+
+    SparseCache.prototype.rget = function(key) {
+      var msg;
+      msg = msgpack.pack;
+      this.send(['rget', key, this.identity]);
+      return this;
+    };
+
+    SparseCache.prototype._remove = function(key) {
+      return this.cache.remove(key);
+    };
+
+    SparseCache.prototype.remove = function(key) {
+      this._remove(key);
+      return this.send(['remove', key]);
+    };
+
+    SparseCache.prototype.close = function() {
+      this.pubSocket.close();
+      return this.subSocket.close();
+    };
+
+    SparseCache.prototype.connectPgm = function(pgm) {
       var _this = this;
       if (pgm == null) {
         pgm = "epgm://225.0.0.0:5555";
@@ -48,43 +182,9 @@ Module dependencies
       this.subSocket.identity = os.hostname() + "_sub_" + process.pid;
       this.subSocket.setsockopt('_subscribe', new Buffer(''));
       this.subSocket.connect(pgm);
-      return this.subSocket.on('message', function(msg) {
-        var event;
-        msg = msgpack.unpack(msg);
-        event = msg[0];
-        switch (event) {
-          case "set":
-            return _this._set(msg[1], msg[2]);
-          case "remove":
-            return _this._remove(msg[1]);
-        }
+      return this.subSocket.on('message', function(data) {
+        return _this.handleMessage(data);
       });
-    };
-
-    SparseCache.prototype._set = function(key, value) {
-      return this.cache.set(key, value);
-    };
-
-    SparseCache.prototype.set = function(key, value) {
-      var msg;
-      this._set(key, value);
-      msg = msgpack.pack(['set', key, value]);
-      return this.pubSocket.send(msg);
-    };
-
-    SparseCache.prototype.get = function(key) {
-      return this.cache.get(key);
-    };
-
-    SparseCache.prototype._remove = function(key) {
-      return this.cache.remove(key);
-    };
-
-    SparseCache.prototype.remove = function(key) {
-      var msg;
-      this._remove(key);
-      msg = msgpack.pack(['remove', key]);
-      return this.pubSocket.send(msg);
     };
 
     return SparseCache;
