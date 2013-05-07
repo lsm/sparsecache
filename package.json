@@ -11,7 +11,7 @@
   "main": "./lib",
   "dependencies": {
     "zmq": "~2.2.0",
-    "msgpack": "~0.1.7",
+    "msgpack": "~0.1.8",
     "lru": "~0.1.5"
   },
   "engines": {
